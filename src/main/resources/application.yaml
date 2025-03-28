@@ -1,0 +1,62 @@
+spring:
+  application:
+    name: circuitbreaker
+
+resilience4j:
+  circuitbreaker:
+    circuitBreakerAspectOrder: 1
+    instances:
+      productService:
+        registerHealthIndicator: true
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+          - java.net.ConnectException
+          - feign.FeignException
+          - java.lang.RuntimeException
+
+  retry:
+    retryAspectOrder: 2
+    instances:
+      productServiceRetry:
+        maxAttempts: 3
+        waitDuration: 2000ms  # Wait 2 seconds between retries
+        retryExceptions:
+          - java.io.IOException
+          - feign.FeignException
+          - org.springframework.web.client.HttpServerErrorException
+          - java.util.concurrent.TimeoutException
+          - java.net.ConnectException
+          - java.lang.RuntimeException
+
+  ratelimiter:
+    instances:
+      productServiceRateLimiter:
+        limitForPeriod: 5  # Allow 5 requests per second
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0  # Reject immediately if limit is exceeded
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+logging:
+  level:
+    io.github.resilience4j: INFO
+    org.springframework.web.client: INFO
+    com.yourpackage: INFO
+    org.springframework.cloud.openfeign: INFO  # If using Feign clients
+    org.springframework.http.client: INFO  # If using RestTemplate
